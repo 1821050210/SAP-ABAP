@@ -1,0 +1,560 @@
+INCLUDE ZIN_FINAL_LY_TOP.
+REPORT ZPG_FINAL_LY.
+TABLES : ZBOOK_IN.
+TYPE-POOLS : VRM.
+
+TYPES : BEGIN OF gty_Ogirinal,
+           BOOK_ID   TYPE ZD_BOOKID,
+           TITLE     TYPE ZD_TITLE,
+           QUANTITY  TYPE ZD_QTY,
+           CATEGORY  TYPE ZD_CAT,
+           AUTHOR    TYPE ZD_AUTHOR,
+           TYPE      TYPE ZD_TYPE,
+         END OF gty_Ogirinal.
+
+TYPES : BEGIN OF gty_Result,
+           QUANTITY  TYPE p DECIMALS 2,
+           KQ        TYPE char50,
+        END OF gty_Result.
+
+DATA :  gs_Ogirinal_1  TYPE ZBOOK_IN.
+DATA :  gt_Ogirinal    TYPE TABLE OF gty_Ogirinal,
+        gs_Ogirinal    TYPE gty_Ogirinal.
+
+DATA:   gt_Result   TYPE TABLE OF gty_Result,
+        gs_Result   TYPE gty_Result,
+        gt_Result1  TYPE TABLE OF gty_Result,
+        gs_Result1  TYPE gty_Result.
+
+*Xet gia tri listbox -------
+DATA :  vrm_values  TYPE vrm_values,
+        vrm_value   LIKE LINE OF vrm_values.
+
+*Xet gia tri tinh  +_*/------
+DATA: sum      TYPE i,
+      sub      TYPE i,
+      mul      TYPE p ,"LENGTH 10 DECIMALS 10,
+      div      TYPE p DECIMALS 2,
+      n        TYPE i,
+      ls_group TYPE gty_Result.
+
+* --- global data------
+class lcl_event_receiver definition deferred.
+DATA:   gs_toolbar TYPE stb_button,
+        gs_row     TYPE lvc_s_row.
+DATA:   go_grid_1         TYPE REF TO cl_gui_alv_grid,
+        go_grid_2         TYPE REF TO cl_gui_alv_grid,
+        go_cont_1         TYPE REF TO cl_gui_custom_container,
+        go_cont_2         TYPE REF TO cl_gui_custom_container,
+        go_event_receiver TYPE REF TO lcl_event_receiver,
+        gt_fieldcat       TYPE lvc_t_fcat,
+        gs_fieldcat       TYPE LVC_S_FCAT,
+        gt_fieldcat1      TYPE lvc_t_fcat,
+        gs_fieldcat1      TYPE LVC_S_FCAT,
+        gs_layout         TYPE lvc_s_fcat,
+        gs_layout1        TYPE lvc_s_fcat.
+
+field-symbols: <fs_fcat> like line of gt_fieldcat.
+
+INCLUDE ZIN_FINAL_LY_SRC.
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text_001.
+PARAMETERS : P_List  TYPE C AS LISTBOX VISIBLE LENGTH 10 OBLIGATORY,
+             P_Field TYPE C AS LISTBOX VISIBLE LENGTH 20 OBLIGATORY.
+SELECTION-SCREEN END OF BLOCK b1.
+
+INCLUDE ZIN_FINAL_LY_CLS.
+
+
+CLASS LCL_EVENT_RECEIVER DEFINITION.
+  PUBLIC SECTION.
+    METHODS :toolbar FOR EVENT toolbar OF  cl_gui_alv_grid
+      IMPORTING e_object,
+      user_command FOR EVENT user_command OF cl_gui_alv_grid
+        IMPORTING e_ucomm.
+ENDCLASS.
+CLASS LCL_EVENT_RECEIVER IMPLEMENTATION.
+  METHOD toolbar.
+    FIELD-SYMBOLS: <fs_toolbar> LIKE gs_toolbar.
+    gs_toolbar-function = 'UPDATE'.
+    gs_toolbar-icon    = icon_detail.
+    APPEND gs_toolbar TO e_object->mt_toolbar.
+  ENDMETHOD.
+
+  METHOD user_command.
+    CASE e_ucomm .
+      WHEN 'UPDATE'.
+
+ CLEAR GT_RESULT.
+ CLEAR GT_RESULT1.
+
+  CASE  P_FIELD.
+    WHEN  '1' .
+      LOOP AT GT_OGIRINAL INTO GS_OGIRINAL.
+        MOVE-CORRESPONDING GS_OGIRINAL TO GS_RESULT.
+        GS_RESULT-QUANTITY = GS_OGIRINAL-QUANTITY.
+        GS_RESULT-KQ       = GS_OGIRINAL-TITLE.
+        APPEND GS_RESULT TO GT_RESULT.
+        CLEAR: GS_OGIRINAL,GS_RESULT.
+      ENDLOOP.
+
+    WHEN '2' .
+      LOOP AT GT_OGIRINAL INTO GS_OGIRINAL.
+        MOVE-CORRESPONDING GS_OGIRINAL TO GS_RESULT.
+        GS_RESULT-QUANTITY = GS_OGIRINAL-QUANTITY.
+        GS_RESULT-KQ       = GS_OGIRINAL-CATEGORY.
+        APPEND GS_RESULT TO GT_RESULT.
+        CLEAR: GS_OGIRINAL,GS_RESULT.
+     ENDLOOP.
+
+     WHEN '3' .
+      LOOP AT GT_OGIRINAL INTO GS_OGIRINAL.
+        MOVE-CORRESPONDING GS_OGIRINAL TO GS_RESULT.
+        GS_RESULT-QUANTITY = GS_OGIRINAL-QUANTITY.
+        GS_RESULT-KQ       = GS_OGIRINAL-AUTHOR.
+        APPEND GS_RESULT TO GT_RESULT.
+        CLEAR: GS_OGIRINAL,GS_RESULT.
+      ENDLOOP.
+
+     WHEN OTHERS.
+      LOOP AT GT_OGIRINAL INTO GS_OGIRINAL.
+        MOVE-CORRESPONDING GS_OGIRINAL TO GS_RESULT.
+        GS_RESULT-QUANTITY = GS_OGIRINAL-QUANTITY.
+        GS_RESULT-KQ       = GS_OGIRINAL-TYPE.
+        APPEND GS_RESULT TO GT_RESULT.
+        CLEAR: GS_OGIRINAL,GS_RESULT.
+      ENDLOOP.
+  ENDCASE.
+
+ CASE P_LIST.
+    WHEN '+' .
+      LOOP AT GT_RESULT INTO GS_RESULT GROUP BY GS_RESULT-KQ.
+          sum = 0 .
+          LOOP AT GROUP GS_RESULT INTO LS_GROUP .
+            sum = sum + LS_GROUP-QUANTITY.
+          ENDLOOP.
+          GS_RESULT1-QUANTITY = sum.
+          GS_RESULT1-KQ       =  GS_RESULT-KQ.
+          APPEND GS_RESULT1  TO GT_RESULT1.
+          CLEAR: GS_RESULT1.
+      ENDLOOP.
+
+    WHEN '-' .
+      LOOP AT GT_RESULT INTO GS_RESULT GROUP BY GS_RESULT-KQ.
+          SUB = 0 .
+          n = 1.
+          LOOP AT GROUP GS_RESULT INTO LS_GROUP .
+            IF n = 1.
+              sub = LS_GROUP-QUANTITY.
+              n = 2.
+               ELSE.
+                  sub = sub - LS_GROUP-QUANTITY.
+            ENDIF.
+          ENDLOOP.
+          GS_RESULT1-QUANTITY = sub.
+          GS_RESULT1-KQ       =  GS_RESULT-KQ.
+          APPEND GS_RESULT1  TO GT_RESULT1.
+          CLEAR: GS_RESULT1.
+      ENDLOOP.
+
+     WHEN '*' .
+      LOOP AT GT_RESULT INTO GS_RESULT GROUP BY GS_RESULT-KQ.
+          MUL = 1 .
+          LOOP AT GROUP GS_RESULT INTO LS_GROUP .
+           mul = mul * LS_GROUP-QUANTITY.
+          ENDLOOP.
+          GS_RESULT1-QUANTITY = mul.
+          GS_RESULT1-KQ       = GS_RESULT-KQ.
+          APPEND GS_RESULT1  TO GT_RESULT1.
+          CLEAR: GS_RESULT1.
+      ENDLOOP.
+
+    WHEN OTHERS.
+      LOOP AT GT_RESULT INTO GS_RESULT GROUP BY GS_RESULT-KQ.
+          n = 1 .
+          LOOP AT GROUP GS_RESULT INTO LS_GROUP .
+             IF n = 1.
+              div = LS_GROUP-QUANTITY.
+              n = 2.
+               ELSE.
+                  div = div / LS_GROUP-QUANTITY.
+            ENDIF.
+          ENDLOOP.
+          GS_RESULT1-QUANTITY = div .
+          GS_RESULT1-KQ       =  GS_RESULT-KQ.
+          APPEND GS_RESULT1  TO GT_RESULT1.
+          CLEAR: GS_RESULT1.
+      ENDLOOP.
+  ENDCASE.
+
+*  CALL METHOD go_grid_2->set_table_for_first_display
+*      EXPORTING
+*        i_structure_name              = 'GS_RESULT'
+*      CHANGING
+*        it_outtab                     = GT_RESULT1
+*        IT_FIELDCATALOG               = GT_FIELDCAT1
+*
+*      EXCEPTIONS
+*        invalid_parameter_combination = 1
+*        program_error                 = 2
+*        too_many_lines                = 3
+*        OTHERS                        = 4.
+
+        CALL METHOD go_grid_2->refresh_table_display.
+        IF sy-subrc = 0.
+          MESSAGE 'luu thanh cong' TYPE 'I' DISPLAY LIKE 'S'.
+        ENDIF.
+
+      WHEN OTHERS.
+    ENDCASE.
+  ENDMETHOD.
+
+ENDCLASS.
+
+INCLUDE ZIN_FINAL_LY_FORM.
+
+define set_list_box_value.
+  vrm_value-key = &1.
+  vrm_value-text = &2.
+  APPEND vrm_value TO vrm_values.
+  CLEAR vrm_value.
+end-of-definition.
+
+form set_list_box_operator .
+  clear vrm_values.
+  set_list_box_value '+' ' Addition'.
+  set_list_box_value '-' ' Subtraction'.
+  set_list_box_value '*' ' Multiplication'.
+  set_list_box_value '/' ' Arithmetic Mean'.
+
+  call function 'VRM_SET_VALUES'
+    exporting
+      id              = 'P_LIST'
+      values          = vrm_values
+    exceptions
+      id_illegavrm_id = 1
+      others          = 2.
+
+endform.
+
+form set_list_box_field .
+  clear vrm_values.
+  set_list_box_value '1' '1 Title'.
+  set_list_box_value '2' '2 Category'.
+  set_list_box_value '3' '3 Author'.
+  set_list_box_value '4' '4 Type'.
+
+  call function 'VRM_SET_VALUES'
+    exporting
+      id              = 'P_FIELD'
+      values          = vrm_values
+    exceptions
+      id_illegavrm_id = 1
+      others          = 2.
+endform.
+
+form init .
+  P_LIST = '+'.
+  P_FIELD = '1'.
+endform.
+
+
+
+FORM GET_DATA .
+    SELECT BOOK_ID
+           TITLE
+           QUANTITY
+           CATEGORY
+           AUTHOR
+           TYPE
+     FROM ZBOOK_IN
+     INTO TABLE GT_OGIRINAL.
+ENDFORM.
+
+FORM CREAT_GIRD .
+  CREATE OBJECT GO_CONT_1
+  EXPORTING
+    CONTAINER_NAME = 'ALV1'.
+  CREATE OBJECT GO_GRID_1
+  EXPORTING
+    I_PARENT = GO_CONT_1.
+
+  CREATE OBJECT GO_CONT_2
+  EXPORTING
+    CONTAINER_NAME = 'ALV2'.
+  CREATE OBJECT GO_GRID_2
+  EXPORTING
+    I_PARENT = GO_CONT_2.
+
+ENDFORM.
+
+FORM DISPLAY_DATA_ORIGINAL .
+*--appen gia tri vao alv1---
+     gs_layout-FIELDNAME = 'BOOK_ID'.
+     gs_layout-COLTEXT = 'Book_ID'.
+     gs_layout-OUTPUTLEN = 6.
+     append gs_layout to gt_fieldcat.
+
+     gs_layout-FIELDNAME = 'TITLE'.
+     gs_layout-COLTEXT = 'Title'.
+     gs_layout-OUTPUTLEN = 40.
+     append gs_layout to gt_fieldcat.
+
+     gs_layout-FIELDNAME = 'QUANTITY'.
+     gs_layout-COLTEXT = 'Quantity'.
+     gs_layout-OUTPUTLEN = 10.
+     append gs_layout to gt_fieldcat.
+
+     gs_layout-FIELDNAME = 'CATEGORY'.
+     gs_layout-COLTEXT = 'Category'.
+     gs_layout-OUTPUTLEN = 15.
+     append gs_layout to gt_fieldcat.
+
+     gs_layout-FIELDNAME = 'AUTHOR'.
+     gs_layout-COLTEXT = 'Author'.
+     gs_layout-OUTPUTLEN = 19.
+     append gs_layout to gt_fieldcat.
+
+     gs_layout-FIELDNAME = 'TYPE'.
+     gs_layout-COLTEXT = 'Type'.
+     gs_layout-OUTPUTLEN = 15.
+     append gs_layout to gt_fieldcat.
+
+*--edit cac gia tri theo dieu kien ----
+loop at GT_FIELDCAT assigning <fs_fcat>.
+    case <fs_fcat>-FIELDNAME.
+      when 'BOOK_ID'.
+      when 'TITLE'.
+         if P_FIELD = '1'.
+          <fs_fcat>-EDIT = 'X'.
+          <fs_fcat>-EMPHASIZE = 'C401'.
+        endif.
+      when 'CATEGORY'.
+        if P_FIELD = '2'.
+          <fs_fcat>-edit = 'X'.
+          <fs_fcat>-EMPHASIZE = 'C401'.
+        endif.
+      when 'AUTHOR'.
+        if P_FIELD = '3'.
+          <fs_fcat>-edit = 'X'.
+          <fs_fcat>-EMPHASIZE = 'C401'.
+        endif.
+      when 'TYPE'.
+        if P_FIELD = '4'.
+          <fs_fcat>-edit = 'X'.
+          <fs_fcat>-EMPHASIZE = 'C401'.
+        endif.
+      when 'QUANTITY'.
+        <fs_fcat>-edit = 'X'.
+        <fs_fcat>-EMPHASIZE = 'C601'.
+      when others.
+    endcase.
+  endloop.
+
+   CALL METHOD GO_GRID_1->SET_TABLE_FOR_FIRST_DISPLAY
+   EXPORTING
+     I_STRUCTURE_NAME               = 'GS_OGIRINAL_1'
+   CHANGING
+     IT_OUTTAB                      = GT_OGIRINAL
+     IT_FIELDCATALOG                = GT_FIELDCAT
+
+   EXCEPTIONS
+     INVALID_PARAMETER_COMBINATION  = 1
+     PROGRAM_ERROR                  = 2
+     TOO_MANY_LINES                 = 3
+     OTHERS                         = 4 .
+
+ENDFORM.
+
+FORM DISPLAY_DATA_RESULT .
+ CASE  P_FIELD.
+    WHEN  '1' .
+      gs_layout1-FIELDNAME = 'QUANTITY'.
+      gs_layout1-COLTEXT = 'Quantity'.
+      gs_layout1-OUTPUTLEN = 10.
+      append gs_layout1 to gt_fieldcat1.
+
+      gs_layout1-FIELDNAME = 'KQ'.
+      gs_layout1-COLTEXT = 'Tilte'.
+      gs_layout1-OUTPUTLEN = 45.
+      append gs_layout1 to gt_fieldcat1.
+
+      LOOP AT GT_OGIRINAL INTO GS_OGIRINAL.
+        MOVE-CORRESPONDING GS_OGIRINAL TO GS_RESULT.
+        GS_RESULT-QUANTITY = GS_OGIRINAL-QUANTITY.
+        GS_RESULT-KQ       = GS_OGIRINAL-TITLE.
+        APPEND GS_RESULT TO GT_RESULT.
+        CLEAR: GS_OGIRINAL,GS_RESULT.
+      ENDLOOP.
+
+    WHEN '2' .
+      gs_layout1-FIELDNAME = 'QUANTITY'.
+      gs_layout1-COLTEXT = 'Quantity'.
+      gs_layout1-OUTPUTLEN = 10.
+      append gs_layout1 to gt_fieldcat1.
+
+      gs_layout1-FIELDNAME = 'KQ'.
+      gs_layout1-COLTEXT = 'Category'.
+      gs_layout1-OUTPUTLEN = 45.
+      append gs_layout1 to gt_fieldcat1.
+
+      LOOP AT GT_OGIRINAL INTO GS_OGIRINAL.
+        MOVE-CORRESPONDING GS_OGIRINAL TO GS_RESULT.
+        GS_RESULT-QUANTITY = GS_OGIRINAL-QUANTITY.
+        GS_RESULT-KQ       = GS_OGIRINAL-CATEGORY.
+        APPEND GS_RESULT TO GT_RESULT.
+        CLEAR: GS_OGIRINAL,GS_RESULT.
+     ENDLOOP.
+
+     WHEN '3' .
+      gs_layout1-FIELDNAME = 'QUANTITY'.
+      gs_layout1-COLTEXT = 'Quantity'.
+      gs_layout1-OUTPUTLEN = 10.
+      append gs_layout1 to gt_fieldcat1.
+
+      gs_layout1-FIELDNAME = 'KQ'.
+      gs_layout1-COLTEXT = 'Author'.
+      gs_layout1-OUTPUTLEN = 45.
+      append gs_layout1 to gt_fieldcat1.
+
+      LOOP AT GT_OGIRINAL INTO GS_OGIRINAL.
+        MOVE-CORRESPONDING GS_OGIRINAL TO GS_RESULT.
+        GS_RESULT-QUANTITY = GS_OGIRINAL-QUANTITY.
+        GS_RESULT-KQ       = GS_OGIRINAL-AUTHOR.
+        APPEND GS_RESULT TO GT_RESULT.
+        CLEAR: GS_OGIRINAL,GS_RESULT.
+      ENDLOOP.
+
+     WHEN OTHERS.
+      gs_layout1-FIELDNAME = 'QUANTITY'.
+      gs_layout1-COLTEXT = 'Quantity'.
+      gs_layout1-OUTPUTLEN = 10.
+      append gs_layout1 to gt_fieldcat1.
+
+      gs_layout1-FIELDNAME = 'KQ'.
+      gs_layout1-COLTEXT = 'Type'.
+      gs_layout1-OUTPUTLEN = 45.
+      append gs_layout1 to gt_fieldcat1.
+
+      LOOP AT GT_OGIRINAL INTO GS_OGIRINAL.
+        MOVE-CORRESPONDING GS_OGIRINAL TO GS_RESULT.
+        GS_RESULT-QUANTITY = GS_OGIRINAL-QUANTITY.
+        GS_RESULT-KQ       = GS_OGIRINAL-TYPE.
+        APPEND GS_RESULT TO GT_RESULT.
+        CLEAR: GS_OGIRINAL,GS_RESULT.
+      ENDLOOP.
+  ENDCASE.
+
+  CASE P_LIST.
+    WHEN '+' .
+      LOOP AT GT_RESULT INTO GS_RESULT GROUP BY GS_RESULT-KQ.
+          sum = 0 .
+          LOOP AT GROUP GS_RESULT INTO LS_GROUP .
+            sum = sum + LS_GROUP-QUANTITY.
+          ENDLOOP.
+          GS_RESULT1-QUANTITY = sum.
+          GS_RESULT1-KQ       =  GS_RESULT-KQ.
+          APPEND GS_RESULT1  TO GT_RESULT1.
+          CLEAR: GS_RESULT1.
+      ENDLOOP.
+
+    WHEN '-' .
+      LOOP AT GT_RESULT INTO GS_RESULT GROUP BY GS_RESULT-KQ.
+          SUB = 0 .
+          n = 1.
+          LOOP AT GROUP GS_RESULT INTO LS_GROUP .
+            IF n = 1.
+              sub = LS_GROUP-QUANTITY.
+              n = 2.
+               ELSE.
+                  sub = sub - LS_GROUP-QUANTITY.
+            ENDIF.
+
+          ENDLOOP.
+          GS_RESULT1-QUANTITY = sub.
+          GS_RESULT1-KQ       =  GS_RESULT-KQ.
+          APPEND GS_RESULT1  TO GT_RESULT1.
+          CLEAR: GS_RESULT1.
+      ENDLOOP.
+
+     WHEN '*' .
+      LOOP AT GT_RESULT INTO GS_RESULT GROUP BY GS_RESULT-KQ.
+          MUL = 1 .
+          LOOP AT GROUP GS_RESULT INTO LS_GROUP .
+           mul = mul * LS_GROUP-QUANTITY.
+          ENDLOOP.
+          GS_RESULT1-QUANTITY = mul.
+          GS_RESULT1-KQ       = GS_RESULT-KQ.
+          APPEND GS_RESULT1  TO GT_RESULT1.
+          CLEAR: GS_RESULT1.
+      ENDLOOP.
+
+    WHEN OTHERS.
+      LOOP AT GT_RESULT INTO GS_RESULT GROUP BY GS_RESULT-KQ.
+          n = 1 .
+          LOOP AT GROUP GS_RESULT INTO LS_GROUP .
+             IF n = 1.
+              div = LS_GROUP-QUANTITY.
+              n = 2.
+               ELSE.
+                  div = div / LS_GROUP-QUANTITY.
+            ENDIF.
+          ENDLOOP.
+          GS_RESULT1-QUANTITY = div .
+          GS_RESULT1-KQ       =  GS_RESULT-KQ.
+          APPEND GS_RESULT1  TO GT_RESULT1.
+          CLEAR: GS_RESULT1.
+      ENDLOOP.
+  ENDCASE.
+
+  CALL METHOD go_grid_2->set_table_for_first_display
+      EXPORTING
+        i_structure_name              = 'GS_RESULT'
+      CHANGING
+        it_outtab                     = GT_RESULT1
+        IT_FIELDCATALOG               = GT_FIELDCAT1
+
+      EXCEPTIONS
+        invalid_parameter_combination = 1
+        program_error                 = 2
+        too_many_lines                = 3
+        OTHERS                        = 4.
+  ENDFORM.
+  
+ MODULE USER_COMMAND_1001 INPUT.
+  case sy-ucomm.
+    when 'BACK'.
+      leave to screen 0.
+    when 'EXIT'.
+      leave program.
+    when 'SAVE'.
+    when others.
+  endcase.
+  clear sy-UCOMM.
+
+ENDMODULE.
+
+MODULE STATUS_1001 OUTPUT.
+  SET PF-STATUS 'ZGUI'.
+ENDMODULE.
+
+MODULE BUILD_OBJECT_1001 OUTPUT.
+IF GO_CONT_1 is INITIAL AND GO_CONT_2 is INITIAL.
+  PERFORM GET_DATA.
+  PERFORM creat_gird.
+  CREATE OBJECT GO_EVENT_RECEIVER.
+   set handler go_EVENT_RECEIVER->toolbar for go_grid_1.
+   set handler go_EVENT_RECEIVER->user_command for go_grid_1.
+  PERFORM display_data_original.
+  PERFORM display_data_result.
+
+ENDIF.
+ENDMODULE.
+
+INITIALIZATION.
+  PERFORM set_list_box_operator.
+  PERFORM set_list_box_field.
+  PERFORM init.
+
+
+START-OF-SELECTION.
+  call SCREEN 1001.
